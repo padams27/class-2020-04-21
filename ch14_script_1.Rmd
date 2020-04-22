@@ -27,16 +27,64 @@ cces <- read_rds("cces_initial.rds")
 
 1) What is the age of oldest person who responded to this survey?
 
+```{r}
+cces %>% arrange(desc(age))
+
+95
+```
+
+
 2) What proportion of females voted for Trump? 
+
+
+```{r}
+f <- cces %>% filter(gender == "Female") %>% 
+  count()
+
+f_t <- cces %>% 
+  filter(gender == "Female") %>% 
+  filter(trump == 1) %>% 
+  count()
+
+prop_f_t <- (f_t / f) * 100
+
+39.92
+```
 
 
 # Scene 2
 
 **Prompt:** Start by creating a logistic model using every variable to try and predict the Trump vote. Consider using `logistic_reg()`, `set_engine()`, and `fit()`. Save the model to an object named `logistic_mod` and the fit to `logistic_fit`. Feel free to refer to the code from last week or to the code in the *Primer*.
 
+```{r}
+
+logistic_mod <- logistic_reg() %>%
+  set_engine("glm")  
+
+logistic_fit <-  
+    fit(logistic_mod,
+        factor(trump) ~ gender + age + educ + race + income + party + ideology, data = cces)
+
+
+logistic_fit$fit %>% 
+  tidy(conf.int = TRUE) %>% 
+  select(term, estimate, conf.low, conf.high)
+
+```
+
+
 1) Print out the model with the confidence interval and interpret the coefficient of `gender`? (Hint: use the divide-by-four rule.) Explain the association of Trump-voting with variables like `income` and `party` to your smart-but-not-mathematical boss. Why doesn't income matter?
 
 2) What is the expected vote for Dom - who is Male, 37, holds a 4-year degree (placing him in the 5 `educ` bucket), Asian, makes $77,000, with `ideology` and `party` equal to 3. (Hint: use predict().)
+
+
+```{r}
+
+
+predict(logistic_fit, new_data = tibble(gender = "Male", age = 37, educ = 5, race = "Asian", 
+                              party = 3, ideology = 3, income = 8))
+
+```
 
 
 
@@ -44,7 +92,39 @@ cces <- read_rds("cces_initial.rds")
 
 **Prompt:** Great! Now that you have created a logistic model to predict Trump vote, create two more models: CART (rpart) and randomforest. Set the seed to 1005. For rand_forest, set mtry = 7 to use all our predictors and set trees = 50 so your computer doesn't take forever to run.
 
+```{r}
+
+set.seed(1005)
+
+cart_mod <- decision_tree() %>%
+  set_engine("rpart", model = TRUE) %>%
+  set_mode("classification")
+
+cart_fit <- fit(cart_mod,
+                    trump ~ ideology + income + gender + race + age + educ + party,
+                    data = cces)
+
+cart_fit$fit %>%
+  prp(extra = "auto")
+
+```
+
+
 1) Interpret the output of the CART model (Hint: set extra = "auto" in `prp()`.) Where would Dom fall in this decision tree? 
+
+
+```{r}
+
+rf_mod <- rand_forest(mtry = 7, trees = 50) %>%
+  set_engine("randomForest") %>%
+  set_mode("classification")
+rf_fit <- fit(rf_mod,
+              trump ~ ideology + income + gender + race + age + educ + party,
+              data = cces)
+rf_fit
+
+```
+
 
 2) Looking at the randomForest model, what does the OOB error tell us? Interpret the first row, second column of the confusion matrix, what does that 920 represent? How does 920 relate to the class.error of 0.078?
 
